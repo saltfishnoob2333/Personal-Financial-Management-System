@@ -1,0 +1,42 @@
+# ====================== 编译产物 ======================
+# Maven 编译输出目录
+target/
+# Gradle 编译输出目录
+build/
+out/
+# 单个 class 文件或 jar/war 包
+*.class
+*.jar
+*.war
+*.ear
+
+# ====================== IDE 配置 ======================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+# Eclipse
+.classpath
+.project
+.settings/
+# VS Code
+.vscode/
+*.code-workspace
+
+# ====================== 运行时文件 ======================
+# 日志文件
+*.log
+logs/
+# 临时文件
+*.tmp
+*.temp
+# 系统缓存文件
+.DS_Store  # Mac 系统特有
+Thumbs.db  # Windows 系统特有
+
+# ====================== 可选忽略 ======================
+# 本地配置文件（如包含数据库密码的 application-dev.yml）
+src/main/resources/application-dev.yml
+# Maven 本地仓库缓存（一般不需要上传）
+.mvn/
