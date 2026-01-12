@@ -1,36 +1,15 @@
-# Java编译文件
-*.class
-*.jar
-*.war
-
-# IDE相关文件
+# IDEA配置文件
 .idea/
 *.iml
-.vscode/
-.classpath
-.project
-.settings/
-bin/
-build/
+*.iws
+*.ipr
 out/
-
-# 数据库相关
-*.db
-*.sqlite
-*.log
-
-# 系统文件
-.DS_Store
-Thumbs.db
-
-# 临时文件
-*.tmp
-*.temp
-
-# Maven/Gradle
 target/
-.gradle/
-build/
-.mvn/
-mvnw
-gradlew
+
+# 系统临时文件
+*.tmp
+*.swp
+.DS_Store
+
+# 日志文件
+*.log
