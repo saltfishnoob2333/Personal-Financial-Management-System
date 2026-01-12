@@ -1,0 +1,3696 @@
+// File: ./src/com/finance/controller/BillController.java
+package com.finance.controller;
+
+import com.finance.entity.Bill;
+import com.finance.service.BillService;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+public class BillController {
+    private BillService billService = new BillService();
+    private UserController userController;
+
+    public BillController(UserController userController) {
+        this.userController = userController;
+    }
+
+    /**
+     * 添加账单
+     */
+    public boolean addBill(Integer categoryId, BigDecimal amount,
+                           String type, String remark, Date billDate) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        Bill bill = new Bill(userController.getCurrentUser().getId(),
+                categoryId, amount, type, remark, billDate);
+        return billService.addBill(bill);
+    }
+
+    /**
+     * 更新账单
+     */
+    public boolean updateBill(Integer id, Integer categoryId, BigDecimal amount,
+                              String type, String remark, Date billDate) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        Bill bill = new Bill(userController.getCurrentUser().getId(),
+                categoryId, amount, type, remark, billDate);
+        bill.setId(id);
+        return billService.updateBill(bill);
+    }
+
+    /**
+     * 删除账单
+     */
+    public boolean deleteBill(Integer id) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        return billService.deleteBill(id, userController.getCurrentUser().getId());
+    }
+
+    /**
+     * 获取账单
+     */
+    public Bill getBillById(Integer id) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+
+        return billService.getBillById(id, userController.getCurrentUser().getId());
+    }
+
+    /**
+     * 查询账单列表
+     */
+    public List<Bill> getBills(Date startDate, Date endDate, String type,
+                               Integer categoryId, int page, int pageSize) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+
+        return billService.getBills(userController.getCurrentUser().getId(),
+                startDate, endDate, type, categoryId, page, pageSize);
+    }
+
+    /**
+     * 获取账单总数
+     */
+    public int getBillCount(Date startDate, Date endDate, String type, Integer categoryId) {
+        if (!userController.isLoggedIn()) {
+            return 0;
+        }
+
+        return billService.getBillCount(userController.getCurrentUser().getId(),
+                startDate, endDate, type, categoryId);
+    }
+
+    /**
+     * 获取分页总数
+     */
+    public int getTotalPages(Date startDate, Date endDate, String type,
+                             Integer categoryId, int pageSize) {
+        int totalCount = getBillCount(startDate, endDate, type, categoryId);
+        return billService.getTotalPages(totalCount, pageSize);
+    }
+
+    /**
+     * 获取月度收支统计
+     */
+    public Map<String, BigDecimal> getMonthlySummary(int year, int month) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+
+        return billService.getMonthlySummary(userController.getCurrentUser().getId(), year, month);
+    }
+
+    /**
+     * 获取分类收支统计
+     */
+    public List<Map<String, Object>> getCategoryStats(Date startDate, Date endDate, String type) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+
+        return billService.getCategoryStats(userController.getCurrentUser().getId(),
+                startDate, endDate, type);
+    }
+
+    /**
+     * 获取收支趋势数据
+     */
+    public List<Map<String, Object>> getTrendData(Date startDate, Date endDate) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+
+        return billService.getTrendData(userController.getCurrentUser().getId(), startDate, endDate);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/controller/CategoryController.java
+package com.finance.controller;
+
+import com.finance.entity.Category;
+import com.finance.service.CategoryService;
+import java.util.List;
+
+public class CategoryController {
+    private CategoryService categoryService = new CategoryService();
+    private UserController userController;
+
+    public CategoryController(UserController userController) {
+        this.userController = userController;
+    }
+
+    /**
+     * 获取所有分类（包括系统默认）
+     */
+    public List<Category> getAllCategories() {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+        return categoryService.getUserCategories(userController.getCurrentUser().getId());
+    }
+
+    /**
+     * 根据类型获取分类
+     */
+    public List<Category> getCategoriesByType(String type) {
+        if (!userController.isLoggedIn()) {
+            return null;
+        }
+        return categoryService.getCategoriesByType(userController.getCurrentUser().getId(), type);
+    }
+
+    /**
+     * 添加分类
+     */
+    public boolean addCategory(String name, String type) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        Category category = new Category(name, type, userController.getCurrentUser().getId());
+        return categoryService.addCategory(category);
+    }
+
+    /**
+     * 更新分类
+     */
+    public boolean updateCategory(Integer id, String name, String type) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        Category category = new Category(name, type, userController.getCurrentUser().getId());
+        category.setId(id);
+        return categoryService.updateCategory(category);
+    }
+
+    /**
+     * 删除分类
+     */
+    public boolean deleteCategory(Integer id) {
+        if (!userController.isLoggedIn()) {
+            return false;
+        }
+
+        return categoryService.deleteCategory(id, userController.getCurrentUser().getId());
+    }
+
+    /**
+     * 根据ID获取分类
+     */
+    public Category getCategoryById(Integer id) {
+        return categoryService.getCategoryById(id);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/controller/UserController.java
+package com.finance.controller;
+
+import com.finance.entity.User;
+import com.finance.service.UserService;
+
+public class UserController {
+    private UserService userService = new UserService();
+    private static User currentUser; // 当前登录用户
+
+    /**
+     * 用户注册
+     */
+    public boolean register(String username, String password, String nickname) {
+        User user = new User(username, password, nickname);
+        return userService.register(user);
+    }
+
+    /**
+     * 用户登录
+     */
+    public boolean login(String username, String password) {
+        User user = userService.login(username, password);
+        if (user != null) {
+            currentUser = user;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 用户注销
+     */
+    public void logout() {
+        currentUser = null;
+    }
+
+    /**
+     * 更新用户信息
+     */
+    public boolean updateUser(String password, String nickname) {
+        if (currentUser == null) {
+            return false;
+        }
+
+        currentUser.setPassword(password);
+        currentUser.setNickname(nickname);
+
+        boolean success = userService.updateUser(currentUser);
+        if (success) {
+            // 重新获取最新用户信息
+            currentUser = userService.getUserById(currentUser.getId());
+        }
+        return success;
+    }
+
+    /**
+     * 获取当前用户
+     */
+    public User getCurrentUser() {
+        return currentUser;
+    }
+
+    /**
+     * 检查是否已登录
+     */
+    public boolean isLoggedIn() {
+        return currentUser != null;
+    }
+
+    /**
+     * 检查用户名是否存在
+     */
+    public boolean checkUsernameExists(String username) {
+        return userService.checkUsernameExists(username);
+    }
+
+    // 在 UserController.java 中添加以下方法
+
+    /**
+     * 删除当前用户账户
+     */
+    public boolean deleteAccount(String password) {
+        if (!isLoggedIn()) {
+            return false;
+        }
+
+        // 验证密码
+        if (!userService.verifyPassword(currentUser.getId(), password)) {
+            return false;
+        }
+
+        boolean success = userService.deleteAccount(currentUser.getId(), password);
+        if (success) {
+            // 删除成功后注销当前用户
+            logout();
+        }
+        return success;
+    }
+
+    /**
+     * 验证密码
+     */
+    public boolean verifyPassword(String password) {
+        if (!isLoggedIn()) {
+            return false;
+        }
+        return userService.verifyPassword(currentUser.getId(), password);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/BillDao.java
+package com.finance.dao;
+
+import com.finance.entity.Bill;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+public interface BillDao {
+    // 添加账单
+    boolean add(Bill bill);
+
+    // 更新账单
+    boolean update(Bill bill);
+
+    // 删除账单
+    boolean delete(Integer id, Integer userId);
+
+    // 根据ID查询账单
+    Bill findById(Integer id, Integer userId);
+
+    // 查询用户账单
+    List<Bill> findBills(Integer userId, Date startDate, Date endDate,
+                         String type, Integer categoryId, int page, int pageSize);
+
+    // 统计账单数量
+    int countBills(Integer userId, Date startDate, Date endDate,
+                   String type, Integer categoryId);
+
+    // 月度收支统计
+    Map<String, BigDecimal> getMonthlySummary(Integer userId, int year, int month);
+
+    // 分类收支占比
+    List<Map<String, Object>> getCategoryStats(Integer userId, Date startDate, Date endDate, String type);
+
+    // 获取收支趋势数据
+    List<Map<String, Object>> getTrendData(Integer userId, Date startDate, Date endDate);
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/CategoryDao.java
+package com.finance.dao;
+
+import com.finance.entity.Category;
+import java.util.List;
+
+public interface CategoryDao {
+    // 获取所有系统默认分类
+    List<Category> getSystemCategories();
+
+    // 获取用户自定义分类
+    List<Category> getUserCategories(Integer userId);
+
+    // 根据类型获取分类
+    List<Category> getCategoriesByType(Integer userId, String type);
+
+    // 添加分类
+    boolean add(Category category);
+
+    // 更新分类
+    boolean update(Category category);
+
+    // 删除分类
+    boolean delete(Integer id, Integer userId);
+
+    // 根据ID查询分类
+    Category findById(Integer id);
+
+    // 检查分类是否存在
+    boolean exists(String name, Integer userId);
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/impl/BillDaoImpl.java
+package com.finance.dao.impl;
+
+import com.finance.dao.BillDao;
+import com.finance.entity.Bill;
+import com.finance.util.DBUtil;
+
+import java.math.BigDecimal;
+import java.sql.*;
+import java.util.*;
+import java.util.Date;
+
+public class BillDaoImpl implements BillDao {
+
+    @Override
+    public boolean add(Bill bill) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "INSERT INTO bill(user_id, category_id, amount, type, remark, bill_date) " +
+                    "VALUES(?, ?, ?, ?, ?, ?)";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, bill.getUserId());
+            pstmt.setInt(2, bill.getCategoryId());
+            pstmt.setBigDecimal(3, bill.getAmount());
+            pstmt.setString(4, bill.getType());
+            pstmt.setString(5, bill.getRemark());
+            pstmt.setDate(6, new java.sql.Date(bill.getBillDate().getTime()));
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean update(Bill bill) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "UPDATE bill SET category_id = ?, amount = ?, type = ?, " +
+                    "remark = ?, bill_date = ? WHERE id = ? AND user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, bill.getCategoryId());
+            pstmt.setBigDecimal(2, bill.getAmount());
+            pstmt.setString(3, bill.getType());
+            pstmt.setString(4, bill.getRemark());
+            pstmt.setDate(5, new java.sql.Date(bill.getBillDate().getTime()));
+            pstmt.setInt(6, bill.getId());
+            pstmt.setInt(7, bill.getUserId());
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean delete(Integer id, Integer userId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "DELETE FROM bill WHERE id = ? AND user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, userId);
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public Bill findById(Integer id, Integer userId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT b.*, c.name as category_name FROM bill b " +
+                    "LEFT JOIN category c ON b.category_id = c.id " +
+                    "WHERE b.id = ? AND b.user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, userId);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                Bill bill = new Bill();
+                bill.setId(rs.getInt("id"));
+                bill.setUserId(rs.getInt("user_id"));
+                bill.setCategoryId(rs.getInt("category_id"));
+                bill.setCategoryName(rs.getString("category_name"));
+                bill.setAmount(rs.getBigDecimal("amount"));
+                bill.setType(rs.getString("type"));
+                bill.setRemark(rs.getString("remark"));
+                bill.setBillDate(rs.getDate("bill_date"));
+                bill.setCreateTime(rs.getTimestamp("create_time"));
+                bill.setUpdateTime(rs.getTimestamp("update_time"));
+                return bill;
+            }
+            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public List<Bill> findBills(Integer userId, Date startDate, Date endDate,
+                                String type, Integer categoryId, int page, int pageSize) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Bill> bills = new ArrayList<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            StringBuilder sql = new StringBuilder(
+                    "SELECT b.*, c.name as category_name FROM bill b " +
+                            "LEFT JOIN category c ON b.category_id = c.id " +
+                            "WHERE b.user_id = ?");
+
+            List<Object> params = new ArrayList<>();
+            params.add(userId);
+
+            if (startDate != null) {
+                sql.append(" AND b.bill_date >= ?");
+                params.add(new java.sql.Date(startDate.getTime()));
+            }
+
+            if (endDate != null) {
+                sql.append(" AND b.bill_date <= ?");
+                params.add(new java.sql.Date(endDate.getTime()));
+            }
+
+            if (type != null && !type.isEmpty()) {
+                sql.append(" AND b.type = ?");
+                params.add(type);
+            }
+
+            if (categoryId != null && categoryId > 0) {
+                sql.append(" AND b.category_id = ?");
+                params.add(categoryId);
+            }
+
+            sql.append(" ORDER BY b.bill_date DESC, b.create_time DESC ");
+            sql.append(" LIMIT ? OFFSET ?");
+
+            params.add(pageSize);
+            params.add((page - 1) * pageSize);
+
+            pstmt = conn.prepareStatement(sql.toString());
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Bill bill = new Bill();
+                bill.setId(rs.getInt("id"));
+                bill.setUserId(rs.getInt("user_id"));
+                bill.setCategoryId(rs.getInt("category_id"));
+                bill.setCategoryName(rs.getString("category_name"));
+                bill.setAmount(rs.getBigDecimal("amount"));
+                bill.setType(rs.getString("type"));
+                bill.setRemark(rs.getString("remark"));
+                bill.setBillDate(rs.getDate("bill_date"));
+                bill.setCreateTime(rs.getTimestamp("create_time"));
+                bill.setUpdateTime(rs.getTimestamp("update_time"));
+                bills.add(bill);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return bills;
+    }
+
+    @Override
+    public int countBills(Integer userId, Date startDate, Date endDate,
+                          String type, Integer categoryId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            StringBuilder sql = new StringBuilder(
+                    "SELECT COUNT(*) FROM bill WHERE user_id = ?");
+
+            List<Object> params = new ArrayList<>();
+            params.add(userId);
+
+            if (startDate != null) {
+                sql.append(" AND bill_date >= ?");
+                params.add(new java.sql.Date(startDate.getTime()));
+            }
+
+            if (endDate != null) {
+                sql.append(" AND bill_date <= ?");
+                params.add(new java.sql.Date(endDate.getTime()));
+            }
+
+            if (type != null && !type.isEmpty()) {
+                sql.append(" AND type = ?");
+                params.add(type);
+            }
+
+            if (categoryId != null && categoryId > 0) {
+                sql.append(" AND category_id = ?");
+                params.add(categoryId);
+            }
+
+            pstmt = conn.prepareStatement(sql.toString());
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+            return 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public Map<String, BigDecimal> getMonthlySummary(Integer userId, int year, int month) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        Map<String, BigDecimal> summary = new HashMap<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT type, SUM(amount) as total FROM bill " +
+                    "WHERE user_id = ? AND YEAR(bill_date) = ? AND MONTH(bill_date) = ? " +
+                    "GROUP BY type";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, year);
+            pstmt.setInt(3, month);
+            rs = pstmt.executeQuery();
+
+            BigDecimal income = BigDecimal.ZERO;
+            BigDecimal expense = BigDecimal.ZERO;
+
+            while (rs.next()) {
+                String type = rs.getString("type");
+                BigDecimal total = rs.getBigDecimal("total");
+
+                if ("INCOME".equals(type)) {
+                    income = total;
+                } else if ("EXPENSE".equals(type)) {
+                    expense = total;
+                }
+            }
+
+            summary.put("income", income);
+            summary.put("expense", expense);
+            summary.put("balance", income.subtract(expense));
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return summary;
+    }
+
+    @Override
+    public List<Map<String, Object>> getCategoryStats(Integer userId, Date startDate, Date endDate, String type) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Map<String, Object>> stats = new ArrayList<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT c.name as category_name, SUM(b.amount) as total " +
+                    "FROM bill b " +
+                    "LEFT JOIN category c ON b.category_id = c.id " +
+                    "WHERE b.user_id = ? AND b.type = ? ";
+
+            List<Object> params = new ArrayList<>();
+            params.add(userId);
+            params.add(type);
+
+            if (startDate != null) {
+                sql += "AND b.bill_date >= ? ";
+                params.add(new java.sql.Date(startDate.getTime()));
+            }
+
+            if (endDate != null) {
+                sql += "AND b.bill_date <= ? ";
+                params.add(new java.sql.Date(endDate.getTime()));
+            }
+
+            sql += "GROUP BY c.name ORDER BY total DESC";
+
+            pstmt = conn.prepareStatement(sql);
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            rs = pstmt.executeQuery();
+
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            List<Map<String, Object>> tempList = new ArrayList<>();
+
+            while (rs.next()) {
+                Map<String, Object> stat = new HashMap<>();
+                String categoryName = rs.getString("category_name");
+                BigDecimal amount = rs.getBigDecimal("total");
+
+                stat.put("category", categoryName);
+                stat.put("amount", amount);
+                tempList.add(stat);
+
+                totalAmount = totalAmount.add(amount);
+            }
+
+            // 计算百分比
+            for (Map<String, Object> stat : tempList) {
+                BigDecimal amount = (BigDecimal) stat.get("amount");
+                double percentage = 0;
+                if (totalAmount.compareTo(BigDecimal.ZERO) != 0) {
+                    percentage = amount.divide(totalAmount, 4, BigDecimal.ROUND_HALF_UP)
+                            .multiply(new BigDecimal(100))
+                            .doubleValue();
+                }
+                stat.put("percentage", percentage);
+                stats.add(stat);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return stats;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTrendData(Integer userId, Date startDate, Date endDate) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Map<String, Object>> trendData = new ArrayList<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT DATE_FORMAT(bill_date, '%Y-%m') as month, " +
+                    "SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END) as income, " +
+                    "SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END) as expense " +
+                    "FROM bill " +
+                    "WHERE user_id = ? ";
+
+            List<Object> params = new ArrayList<>();
+            params.add(userId);
+
+            if (startDate != null) {
+                sql += "AND bill_date >= ? ";
+                params.add(new java.sql.Date(startDate.getTime()));
+            }
+
+            if (endDate != null) {
+                sql += "AND bill_date <= ? ";
+                params.add(new java.sql.Date(endDate.getTime()));
+            }
+
+            sql += "GROUP BY DATE_FORMAT(bill_date, '%Y-%m') " +
+                    "ORDER BY month";
+
+            pstmt = conn.prepareStatement(sql);
+
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Map<String, Object> data = new HashMap<>();
+                data.put("month", rs.getString("month"));
+                data.put("income", rs.getBigDecimal("income"));
+                data.put("expense", rs.getBigDecimal("expense"));
+                trendData.add(data);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return trendData;
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/impl/CategoryDaoImpl.java
+package com.finance.dao.impl;
+
+import com.finance.dao.CategoryDao;
+import com.finance.entity.Category;
+import com.finance.util.DBUtil;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class CategoryDaoImpl implements CategoryDao {
+
+    @Override
+    public List<Category> getSystemCategories() {
+        return getCategoriesByType(0, null);
+    }
+
+    @Override
+    public List<Category> getUserCategories(Integer userId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Category> categories = new ArrayList<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM category WHERE user_id = ? OR user_id = 0 ORDER BY user_id, type, name";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, userId);
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Category category = new Category();
+                category.setId(rs.getInt("id"));
+                category.setName(rs.getString("name"));
+                category.setType(rs.getString("type"));
+                category.setUserId(rs.getInt("user_id"));
+                category.setCreateTime(rs.getTimestamp("create_time"));
+                categories.add(category);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return categories;
+    }
+
+    @Override
+    public List<Category> getCategoriesByType(Integer userId, String type) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<Category> categories = new ArrayList<>();
+
+        try {
+            conn = DBUtil.getConnection();
+            StringBuilder sql = new StringBuilder(
+                    "SELECT * FROM category WHERE (user_id = ? OR user_id = 0)");
+
+            if (type != null && !type.isEmpty()) {
+                sql.append(" AND type = ?");
+            }
+            sql.append(" ORDER BY user_id, name");
+
+            pstmt = conn.prepareStatement(sql.toString());
+            pstmt.setInt(1, userId);
+
+            if (type != null && !type.isEmpty()) {
+                pstmt.setString(2, type);
+            }
+
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                Category category = new Category();
+                category.setId(rs.getInt("id"));
+                category.setName(rs.getString("name"));
+                category.setType(rs.getString("type"));
+                category.setUserId(rs.getInt("user_id"));
+                category.setCreateTime(rs.getTimestamp("create_time"));
+                categories.add(category);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+        return categories;
+    }
+
+    @Override
+    public boolean add(Category category) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "INSERT INTO category(name, type, user_id) VALUES(?, ?, ?)";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, category.getName());
+            pstmt.setString(2, category.getType());
+            pstmt.setInt(3, category.getUserId());
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean update(Category category) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "UPDATE category SET name = ?, type = ? WHERE id = ? AND user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, category.getName());
+            pstmt.setString(2, category.getType());
+            pstmt.setInt(3, category.getId());
+            pstmt.setInt(4, category.getUserId());
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean delete(Integer id, Integer userId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "DELETE FROM category WHERE id = ? AND user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.setInt(2, userId);
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public Category findById(Integer id) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM category WHERE id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                Category category = new Category();
+                category.setId(rs.getInt("id"));
+                category.setName(rs.getString("name"));
+                category.setType(rs.getString("type"));
+                category.setUserId(rs.getInt("user_id"));
+                category.setCreateTime(rs.getTimestamp("create_time"));
+                return category;
+            }
+            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public boolean exists(String name, Integer userId) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT COUNT(*) FROM category WHERE name = ? AND user_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name);
+            pstmt.setInt(2, userId);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+            return false;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/impl/UserDaoImpl.java
+package com.finance.dao.impl;
+
+import com.finance.dao.UserDao;
+import com.finance.entity.User;
+import com.finance.util.DBUtil;
+
+import java.sql.*;
+
+public class UserDaoImpl implements UserDao {
+
+    // 在 UserDaoImpl.java 中添加以下方法实现
+
+    @Override
+    public boolean delete(Integer userId, String password) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            // 首先验证密码
+            if (!checkPassword(userId, password)) {
+                return false;
+            }
+
+            conn = DBUtil.getConnection();
+            // 开启事务
+            conn.setAutoCommit(false);
+
+            // 1. 删除用户的账单记录
+            String deleteBillsSql = "DELETE FROM bill WHERE user_id = ?";
+            pstmt = conn.prepareStatement(deleteBillsSql);
+            pstmt.setInt(1, userId);
+            pstmt.executeUpdate();
+            pstmt.close();
+
+            // 2. 删除用户的自定义分类
+            String deleteCategoriesSql = "DELETE FROM category WHERE user_id = ?";
+            pstmt = conn.prepareStatement(deleteCategoriesSql);
+            pstmt.setInt(1, userId);
+            pstmt.executeUpdate();
+            pstmt.close();
+
+            // 3. 删除用户账户
+            String deleteUserSql = "DELETE FROM user WHERE id = ?";
+            pstmt = conn.prepareStatement(deleteUserSql);
+            pstmt.setInt(1, userId);
+            int result = pstmt.executeUpdate();
+
+            // 提交事务
+            conn.commit();
+            return result > 0;
+
+        } catch (SQLException e) {
+            // 回滚事务
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (conn != null) conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean checkPassword(Integer userId, String password) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT password FROM user WHERE id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, userId);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+                return storedPassword.equals(password);
+            }
+            return false;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public boolean register(User user) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "INSERT INTO user(username, password, nickname) VALUES(?, ?, ?)";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, user.getUsername());
+            pstmt.setString(2, user.getPassword());
+            pstmt.setString(3, user.getNickname());
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public User login(String username, String password) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM user WHERE username = ? AND password = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, username);
+            pstmt.setString(2, password);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                User user = new User();
+                user.setId(rs.getInt("id"));
+                user.setUsername(rs.getString("username"));
+                user.setPassword(rs.getString("password"));
+                user.setNickname(rs.getString("nickname"));
+                user.setCreateTime(rs.getTimestamp("create_time"));
+                user.setUpdateTime(rs.getTimestamp("update_time"));
+                return user;
+            }
+            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public User findById(Integer id) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM user WHERE id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                User user = new User();
+                user.setId(rs.getInt("id"));
+                user.setUsername(rs.getString("username"));
+                user.setPassword(rs.getString("password"));
+                user.setNickname(rs.getString("nickname"));
+                user.setCreateTime(rs.getTimestamp("create_time"));
+                user.setUpdateTime(rs.getTimestamp("update_time"));
+                return user;
+            }
+            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public User findByUsername(String username) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT * FROM user WHERE username = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, username);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                User user = new User();
+                user.setId(rs.getInt("id"));
+                user.setUsername(rs.getString("username"));
+                user.setPassword(rs.getString("password"));
+                user.setNickname(rs.getString("nickname"));
+                user.setCreateTime(rs.getTimestamp("create_time"));
+                user.setUpdateTime(rs.getTimestamp("update_time"));
+                return user;
+            }
+            return null;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+
+    @Override
+    public boolean update(User user) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "UPDATE user SET password = ?, nickname = ? WHERE id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, user.getPassword());
+            pstmt.setString(2, user.getNickname());
+            pstmt.setInt(3, user.getId());
+
+            int result = pstmt.executeUpdate();
+            return result > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt);
+        }
+    }
+
+    @Override
+    public boolean existsByUsername(String username) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            String sql = "SELECT COUNT(*) FROM user WHERE username = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, username);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+            return false;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            DBUtil.close(conn, pstmt, rs);
+        }
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/dao/UserDao.java
+package com.finance.dao;
+
+import com.finance.entity.User;
+
+public interface UserDao {
+    // 用户注册
+    boolean register(User user);
+
+    // 在 UserDao.java 中添加以下方法
+
+    /**
+     * 删除用户账户
+     * @param userId 用户ID
+     * @param password 密码验证
+     * @return 是否删除成功
+     */
+    boolean delete(Integer userId, String password);
+
+    /**
+     * 检查用户密码是否正确
+     * @param userId 用户ID
+     * @param password 密码
+     * @return 密码是否正确
+     */
+    boolean checkPassword(Integer userId, String password);
+
+    // 用户登录
+    User login(String username, String password);
+
+    // 根据ID查询用户
+    User findById(Integer id);
+
+    // 根据用户名查询用户
+    User findByUsername(String username);
+
+    // 更新用户信息
+    boolean update(User user);
+
+    // 检查用户名是否存在
+    boolean existsByUsername(String username);
+}
+// ===========================================
+
+// File: ./src/com/finance/entity/Bill.java
+package com.finance.entity;
+
+import java.math.BigDecimal;
+import java.util.Date;
+
+public class Bill {
+    private Integer id;
+    private Integer userId;
+    private Integer categoryId;
+    private String categoryName; // 用于显示，不存数据库
+    private BigDecimal amount;
+    private String type; // INCOME 或 EXPENSE
+    private String remark;
+    private Date billDate;
+    private Date createTime;
+    private Date updateTime;
+
+    public Bill() {}
+
+    public Bill(Integer userId, Integer categoryId, BigDecimal amount,
+                String type, String remark, Date billDate) {
+        this.userId = userId;
+        this.categoryId = categoryId;
+        this.amount = amount;
+        this.type = type;
+        this.remark = remark;
+        this.billDate = billDate;
+    }
+
+    // Getter和Setter
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
+
+    public Integer getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(Integer categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public String getCategoryName() {
+        return categoryName;
+    }
+
+    public void setCategoryName(String categoryName) {
+        this.categoryName = categoryName;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public Date getBillDate() {
+        return billDate;
+    }
+
+    public void setBillDate(Date billDate) {
+        this.billDate = billDate;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    @Override
+    public String toString() {
+        return "Bill{" +
+                "id=" + id +
+                ", amount=" + amount +
+                ", type='" + type + '\'' +
+                ", remark='" + remark + '\'' +
+                ", billDate=" + billDate +
+                '}';
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/entity/Category.java
+package com.finance.entity;
+
+import java.util.Date;
+
+public class Category {
+    private Integer id;
+    private String name;
+    private String type; // INCOME 或 EXPENSE
+    private Integer userId;
+    private Date createTime;
+
+    public Category() {}
+
+    public Category(String name, String type, Integer userId) {
+        this.name = name;
+        this.type = type;
+        this.userId = userId;
+    }
+
+    // Getter和Setter
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    @Override
+    public String toString() {
+        return name + " (" + type + ")";
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/entity/User.java
+package com.finance.entity;
+
+import java.util.Date;
+
+public class User {
+    private Integer id;
+    private String username;
+    private String password;
+    private String nickname;
+    private Date createTime;
+    private Date updateTime;
+
+    // 构造方法
+    public User() {}
+
+    public User(String username, String password, String nickname) {
+        this.username = username;
+        this.password = password;
+        this.nickname = nickname;
+    }
+
+    // Getter和Setter
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", nickname='" + nickname + '\'' +
+                '}';
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/service/BillService.java
+package com.finance.service;
+
+import com.finance.dao.BillDao;
+import com.finance.dao.impl.BillDaoImpl;
+import com.finance.entity.Bill;
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+public class BillService {
+    private BillDao billDao = new BillDaoImpl();
+
+    /**
+     * 添加账单
+     */
+    public boolean addBill(Bill bill) {
+        return billDao.add(bill);
+    }
+
+    /**
+     * 更新账单
+     */
+    public boolean updateBill(Bill bill) {
+        // 验证账单是否存在且属于该用户
+        Bill existing = billDao.findById(bill.getId(), bill.getUserId());
+        if (existing == null) {
+            return false;
+        }
+        return billDao.update(bill);
+    }
+
+    /**
+     * 删除账单
+     */
+    public boolean deleteBill(Integer id, Integer userId) {
+        return billDao.delete(id, userId);
+    }
+
+    /**
+     * 获取账单
+     */
+    public Bill getBillById(Integer id, Integer userId) {
+        return billDao.findById(id, userId);
+    }
+
+    /**
+     * 查询账单列表
+     */
+    public List<Bill> getBills(Integer userId, Date startDate, Date endDate,
+                               String type, Integer categoryId, int page, int pageSize) {
+        return billDao.findBills(userId, startDate, endDate, type, categoryId, page, pageSize);
+    }
+
+    /**
+     * 获取账单总数
+     */
+    public int getBillCount(Integer userId, Date startDate, Date endDate,
+                            String type, Integer categoryId) {
+        return billDao.countBills(userId, startDate, endDate, type, categoryId);
+    }
+
+    /**
+     * 获取月度收支统计
+     */
+    public Map<String, BigDecimal> getMonthlySummary(Integer userId, int year, int month) {
+        return billDao.getMonthlySummary(userId, year, month);
+    }
+
+    /**
+     * 获取分类收支统计
+     */
+    public List<Map<String, Object>> getCategoryStats(Integer userId, Date startDate,
+                                                      Date endDate, String type) {
+        return billDao.getCategoryStats(userId, startDate, endDate, type);
+    }
+
+    /**
+     * 获取收支趋势数据
+     */
+    public List<Map<String, Object>> getTrendData(Integer userId, Date startDate, Date endDate) {
+        return billDao.getTrendData(userId, startDate, endDate);
+    }
+
+    /**
+     * 获取分页信息
+     */
+    public int getTotalPages(int totalCount, int pageSize) {
+        return (int) Math.ceil((double) totalCount / pageSize);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/service/CategoryService.java
+package com.finance.service;
+
+import com.finance.dao.CategoryDao;
+import com.finance.dao.impl.CategoryDaoImpl;
+import com.finance.entity.Category;
+import java.util.List;
+
+public class CategoryService {
+    private CategoryDao categoryDao = new CategoryDaoImpl();
+
+    /**
+     * 获取系统默认分类
+     */
+    public List<Category> getSystemCategories() {
+        return categoryDao.getSystemCategories();
+    }
+
+    /**
+     * 获取用户分类（包括系统默认）
+     */
+    public List<Category> getUserCategories(Integer userId) {
+        return categoryDao.getUserCategories(userId);
+    }
+
+    /**
+     * 根据类型获取分类
+     */
+    public List<Category> getCategoriesByType(Integer userId, String type) {
+        return categoryDao.getCategoriesByType(userId, type);
+    }
+
+    /**
+     * 添加分类
+     */
+    public boolean addCategory(Category category) {
+        // 检查分类名是否已存在
+        if (categoryDao.exists(category.getName(), category.getUserId())) {
+            return false;
+        }
+        return categoryDao.add(category);
+    }
+
+    /**
+     * 更新分类
+     */
+    public boolean updateCategory(Category category) {
+        Category existing = categoryDao.findById(category.getId());
+        if (existing == null || !existing.getUserId().equals(category.getUserId())) {
+            return false;
+        }
+
+        // 检查新名称是否与其他分类冲突
+        if (!existing.getName().equals(category.getName()) &&
+                categoryDao.exists(category.getName(), category.getUserId())) {
+            return false;
+        }
+
+        return categoryDao.update(category);
+    }
+
+    /**
+     * 删除分类
+     */
+    public boolean deleteCategory(Integer id, Integer userId) {
+        // 检查分类是否存在且属于该用户
+        Category category = categoryDao.findById(id);
+        if (category == null || !category.getUserId().equals(userId)) {
+            return false;
+        }
+        return categoryDao.delete(id, userId);
+    }
+
+    /**
+     * 根据ID获取分类
+     */
+    public Category getCategoryById(Integer id) {
+        return categoryDao.findById(id);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/service/UserService.java
+package com.finance.service;
+
+import com.finance.dao.UserDao;
+import com.finance.dao.impl.UserDaoImpl;
+import com.finance.entity.User;
+
+public class UserService {
+    private UserDao userDao = new UserDaoImpl();
+
+    /**
+     * 用户注册
+     */
+    public boolean register(User user) {
+        // 检查用户名是否已存在
+        if (userDao.existsByUsername(user.getUsername())) {
+            return false;
+        }
+
+        // 可以在这里添加密码加密逻辑
+        // user.setPassword(encryptPassword(user.getPassword()));
+
+        return userDao.register(user);
+    }
+
+    /**
+     * 用户登录
+     */
+    public User login(String username, String password) {
+        // 可以在这里添加密码验证逻辑
+        // password = encryptPassword(password);
+
+        return userDao.login(username, password);
+    }
+
+    /**
+     * 更新用户信息
+     */
+    public boolean updateUser(User user) {
+        return userDao.update(user);
+    }
+
+    /**
+     * 根据ID获取用户
+     */
+    public User getUserById(Integer id) {
+        return userDao.findById(id);
+    }
+
+    /**
+     * 检查用户名是否存在
+     */
+    public boolean checkUsernameExists(String username) {
+        return userDao.existsByUsername(username);
+    }
+
+    // 简单的密码加密方法（示例）
+    private String encryptPassword(String password) {
+        // 实际项目中应该使用更安全的加密方式，如BCrypt
+        return password; // 这里返回原密码，实际应该加密
+    }
+
+    // 在 UserService.java 中添加以下方法
+
+    /**
+     * 删除用户账户
+     */
+    public boolean deleteAccount(Integer userId, String password) {
+        // 验证密码
+        User user = userDao.findById(userId);
+        if (user == null) {
+            return false;
+        }
+
+        // 可以在这里添加额外的业务逻辑，比如检查是否有未处理的账单等
+
+        return userDao.delete(userId, password);
+    }
+
+    /**
+     * 验证密码
+     */
+    public boolean verifyPassword(Integer userId, String password) {
+        return userDao.checkPassword(userId, password);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/util/DBUtil.java
+package com.finance.util;
+
+import java.io.InputStream;
+import java.sql.*;
+import java.util.Properties;
+
+public class DBUtil {
+    private static String driver;
+    private static String url;
+    private static String username;
+    private static String password;
+
+    static {
+        try {
+            // 加载配置文件
+            InputStream in = DBUtil.class.getClassLoader()
+                    .getResourceAsStream("db.properties");
+            Properties prop = new Properties();
+            prop.load(in);
+
+            driver = prop.getProperty("jdbc.driver");
+            url = prop.getProperty("jdbc.url");
+            username = prop.getProperty("jdbc.username");
+            password = prop.getProperty("jdbc.password");
+
+            // 加载驱动
+            Class.forName(driver);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("数据库配置加载失败");
+        }
+    }
+
+    // 获取数据库连接
+    public static Connection getConnection() {
+        try {
+            return DriverManager.getConnection(url, username, password);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("获取数据库连接失败");
+        }
+    }
+
+    // 关闭资源
+    public static void close(Connection conn, Statement stmt, ResultSet rs) {
+        try {
+            if (rs != null) rs.close();
+            if (stmt != null) stmt.close();
+            if (conn != null) conn.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void close(Connection conn, Statement stmt) {
+        close(conn, stmt, null);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/BillPanel.java
+package com.finance.view;
+
+import com.finance.controller.BillController;
+import com.finance.controller.CategoryController;
+import com.finance.entity.Bill;
+import com.finance.entity.Category;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+
+public class BillPanel extends JPanel implements MainFrame.Refreshable {
+    private BillController billController;
+    private CategoryController categoryController;
+
+    private JTable billTable;
+    private DefaultTableModel tableModel;
+    private JComboBox<String> typeFilter;
+    private JComboBox<Category> categoryFilter;
+    private JTextField startDateField;
+    private JTextField endDateField;
+    private JLabel pageInfoLabel;
+
+    private int currentPage = 1;
+    private final int pageSize = 20;
+    private Date startDateFilter = null;
+    private Date endDateFilter = null;
+    private String typeFilterValue = "";
+    private Integer categoryFilterId = null;
+
+    public BillPanel(BillController billController, CategoryController categoryController) {
+        this.billController = billController;
+        this.categoryController = categoryController;
+        initComponents();
+        loadBills();
+        loadCategories();
+    }
+
+    private void initComponents() {
+        setLayout(new BorderLayout());
+
+        // 创建顶部筛选面板
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        filterPanel.add(new JLabel("收支类型:"));
+        typeFilter = new JComboBox<>(new String[]{"全部", "收入", "支出"});
+        typeFilter.addActionListener(e -> filterChanged());
+        filterPanel.add(typeFilter);
+
+        filterPanel.add(new JLabel("分类:"));
+        categoryFilter = new JComboBox<>();
+        categoryFilter.addItem(new Category("全部", "", 0));
+        categoryFilter.addActionListener(e -> filterChanged());
+        filterPanel.add(categoryFilter);
+
+        filterPanel.add(new JLabel("开始日期:"));
+        startDateField = new JTextField(10);
+        startDateField.setToolTipText("格式: yyyy-MM-dd");
+        filterPanel.add(startDateField);
+
+        filterPanel.add(new JLabel("结束日期:"));
+        endDateField = new JTextField(10);
+        endDateField.setToolTipText("格式: yyyy-MM-dd");
+        filterPanel.add(endDateField);
+
+        JButton filterButton = new JButton("筛选");
+        filterButton.addActionListener(e -> applyDateFilter());
+        filterPanel.add(filterButton);
+
+        JButton clearFilterButton = new JButton("清除筛选");
+        clearFilterButton.addActionListener(e -> clearFilters());
+        filterPanel.add(clearFilterButton);
+
+        add(filterPanel, BorderLayout.NORTH);
+
+        // 创建表格
+        String[] columns = {"ID", "日期", "分类", "收支类型", "金额", "备注", "创建时间"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        billTable = new JTable(tableModel);
+        billTable.setRowHeight(25);
+        JScrollPane scrollPane = new JScrollPane(billTable);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // 创建底部面板
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JButton addButton = new JButton("添加账单");
+        addButton.addActionListener(e -> openAddBillDialog());
+        buttonPanel.add(addButton);
+
+        JButton editButton = new JButton("编辑账单");
+        editButton.addActionListener(e -> openEditBillDialog());
+        buttonPanel.add(editButton);
+
+        JButton deleteButton = new JButton("删除账单");
+        deleteButton.addActionListener(e -> deleteBill());
+        buttonPanel.add(deleteButton);
+
+        bottomPanel.add(buttonPanel, BorderLayout.WEST);
+
+        // 分页面板
+        JPanel pagePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+        JButton firstPageButton = new JButton("首页");
+        firstPageButton.addActionListener(e -> goToPage(1));
+        pagePanel.add(firstPageButton);
+
+        JButton prevPageButton = new JButton("上一页");
+        prevPageButton.addActionListener(e -> goToPage(currentPage - 1));
+        pagePanel.add(prevPageButton);
+
+        pageInfoLabel = new JLabel("第 1 页");
+        pagePanel.add(pageInfoLabel);
+
+        JButton nextPageButton = new JButton("下一页");
+        nextPageButton.addActionListener(e -> goToPage(currentPage + 1));
+        pagePanel.add(nextPageButton);
+
+        JButton lastPageButton = new JButton("末页");
+        lastPageButton.addActionListener(e -> {
+            int totalPages = billController.getTotalPages(
+                    startDateFilter, endDateFilter, typeFilterValue, categoryFilterId, pageSize);
+            goToPage(totalPages);
+        });
+        pagePanel.add(lastPageButton);
+
+        bottomPanel.add(pagePanel, BorderLayout.EAST);
+
+        add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    private void loadCategories() {
+        List<Category> categories = categoryController.getAllCategories();
+        if (categories != null) {
+            for (Category category : categories) {
+                categoryFilter.addItem(category);
+            }
+        }
+    }
+
+    private void loadBills() {
+        // 清空表格
+        tableModel.setRowCount(0);
+
+        // 获取账单数据
+        List<Bill> bills = billController.getBills(
+                startDateFilter, endDateFilter, typeFilterValue,
+                categoryFilterId, currentPage, pageSize);
+
+        if (bills != null) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            SimpleDateFormat datetimeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            for (Bill bill : bills) {
+                Object[] row = {
+                        bill.getId(),
+                        dateFormat.format(bill.getBillDate()),
+                        bill.getCategoryName(),
+                        bill.getType().equals("INCOME") ? "收入" : "支出",
+                        bill.getAmount(),
+                        bill.getRemark(),
+                        datetimeFormat.format(bill.getCreateTime())
+                };
+                tableModel.addRow(row);
+            }
+        }
+
+        // 更新分页信息
+        updatePageInfo();
+    }
+
+    private void updatePageInfo() {
+        int totalCount = billController.getBillCount(
+                startDateFilter, endDateFilter, typeFilterValue, categoryFilterId);
+        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+
+        pageInfoLabel.setText(String.format("第 %d/%d 页，共 %d 条记录",
+                currentPage, totalPages, totalCount));
+    }
+
+    private void filterChanged() {
+        String selectedType = (String) typeFilter.getSelectedItem();
+        typeFilterValue = selectedType.equals("全部") ? "" :
+                selectedType.equals("收入") ? "INCOME" : "EXPENSE";
+
+        Category selectedCategory = (Category) categoryFilter.getSelectedItem();
+        categoryFilterId = (selectedCategory != null && selectedCategory.getId() != null) ?
+                selectedCategory.getId() : null;
+
+        currentPage = 1;
+        loadBills();
+    }
+
+    private void applyDateFilter() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+
+        try {
+            if (!startDateField.getText().trim().isEmpty()) {
+                startDateFilter = sdf.parse(startDateField.getText().trim());
+            } else {
+                startDateFilter = null;
+            }
+
+            if (!endDateField.getText().trim().isEmpty()) {
+                endDateFilter = sdf.parse(endDateField.getText().trim());
+            } else {
+                endDateFilter = null;
+            }
+
+            currentPage = 1;
+            loadBills();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "日期格式错误，请使用 yyyy-MM-dd 格式",
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void clearFilters() {
+        typeFilter.setSelectedIndex(0);
+        categoryFilter.setSelectedIndex(0);
+        startDateField.setText("");
+        endDateField.setText("");
+        startDateFilter = null;
+        endDateFilter = null;
+        typeFilterValue = "";
+        categoryFilterId = null;
+        currentPage = 1;
+        loadBills();
+    }
+
+    private void goToPage(int page) {
+        int totalPages = billController.getTotalPages(
+                startDateFilter, endDateFilter, typeFilterValue, categoryFilterId, pageSize);
+
+        if (page < 1) page = 1;
+        if (page > totalPages && totalPages > 0) page = totalPages;
+
+        currentPage = page;
+        loadBills();
+    }
+
+    private void openAddBillDialog() {
+        new BillDialog(null, billController, categoryController, this).setVisible(true);
+    }
+
+    private void openEditBillDialog() {
+        int selectedRow = billTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "请选择要编辑的账单", "提示",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Integer billId = (Integer) tableModel.getValueAt(selectedRow, 0);
+        Bill bill = billController.getBillById(billId);
+
+        if (bill != null) {
+            new BillDialog(bill, billController, categoryController, this).setVisible(true);
+        }
+    }
+
+    private void deleteBill() {
+        int selectedRow = billTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "请选择要删除的账单", "提示",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this, "确定要删除这条账单吗？",
+                "确认删除", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            Integer billId = (Integer) tableModel.getValueAt(selectedRow, 0);
+            boolean success = billController.deleteBill(billId);
+
+            if (success) {
+                JOptionPane.showMessageDialog(this, "删除成功", "成功",
+                        JOptionPane.INFORMATION_MESSAGE);
+                loadBills();
+            } else {
+                JOptionPane.showMessageDialog(this, "删除失败", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    @Override
+    public void refresh() {
+        loadBills();
+    }
+}
+
+// 账单对话框
+class BillDialog extends JDialog {
+    private Bill bill;
+    private BillController billController;
+    private CategoryController categoryController;
+    private BillPanel billPanel;
+
+    private JComboBox<Category> categoryCombo;
+    private JComboBox<String> typeCombo;
+    private JTextField amountField;
+    private JTextField dateField;
+    private JTextArea remarkArea;
+
+    public BillDialog(Bill bill, BillController billController,
+                      CategoryController categoryController, BillPanel billPanel) {
+        super((Frame) null, bill == null ? "添加账单" : "编辑账单", true);
+        this.bill = bill;
+        this.billController = billController;
+        this.categoryController = categoryController;
+        this.billPanel = billPanel;
+
+        initComponents();
+        if (bill != null) {
+            loadBillData();
+        }
+    }
+
+    private void initComponents() {
+        setSize(400, 350);
+        setLocationRelativeTo(null);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // 表单面板
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // 收支类型
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(new JLabel("收支类型:"), gbc);
+
+        gbc.gridx = 1;
+        typeCombo = new JComboBox<>(new String[]{"收入", "支出"});
+        typeCombo.addActionListener(e -> updateCategories());
+        formPanel.add(typeCombo, gbc);
+
+        // 分类
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(new JLabel("分类:"), gbc);
+
+        gbc.gridx = 1;
+        categoryCombo = new JComboBox<>();
+        formPanel.add(categoryCombo, gbc);
+
+        // 金额
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(new JLabel("金额:"), gbc);
+
+        gbc.gridx = 1;
+        amountField = new JTextField(15);
+        formPanel.add(amountField, gbc);
+
+        // 日期
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        formPanel.add(new JLabel("日期:"), gbc);
+
+        gbc.gridx = 1;
+        dateField = new JTextField(15);
+        dateField.setText(new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+        formPanel.add(dateField, gbc);
+
+        // 备注
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        formPanel.add(new JLabel("备注:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 4;
+        gbc.fill = GridBagConstraints.BOTH;
+        gbc.weighty = 1.0;
+        remarkArea = new JTextArea(3, 15);
+        remarkArea.setLineWrap(true);
+        JScrollPane scrollPane = new JScrollPane(remarkArea);
+        formPanel.add(scrollPane, gbc);
+
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+
+        JButton saveButton = new JButton("保存");
+        saveButton.addActionListener(e -> saveBill());
+
+        JButton cancelButton = new JButton("取消");
+        cancelButton.addActionListener(e -> dispose());
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+
+        // 初始化分类
+        updateCategories();
+    }
+
+    private void updateCategories() {
+        String type = (String) typeCombo.getSelectedItem();
+        String typeValue = type.equals("收入") ? "INCOME" : "EXPENSE";
+
+        List<Category> categories = categoryController.getCategoriesByType(typeValue);
+        categoryCombo.removeAllItems();
+
+        if (categories != null) {
+            for (Category category : categories) {
+                categoryCombo.addItem(category);
+            }
+        }
+    }
+
+    private void loadBillData() {
+        if (bill != null) {
+            // 设置类型
+            typeCombo.setSelectedItem(bill.getType().equals("INCOME") ? "收入" : "支出");
+
+            // 更新分类列表并选中对应分类
+            updateCategories();
+            for (int i = 0; i < categoryCombo.getItemCount(); i++) {
+                Category category = categoryCombo.getItemAt(i);
+                if (category.getId().equals(bill.getCategoryId())) {
+                    categoryCombo.setSelectedIndex(i);
+                    break;
+                }
+            }
+
+            // 设置其他字段
+            amountField.setText(bill.getAmount().toString());
+            dateField.setText(new SimpleDateFormat("yyyy-MM-dd").format(bill.getBillDate()));
+            remarkArea.setText(bill.getRemark() != null ? bill.getRemark() : "");
+        }
+    }
+
+    private void saveBill() {
+        try {
+            // 验证输入
+            if (categoryCombo.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this, "请选择分类", "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            Category selectedCategory = (Category) categoryCombo.getSelectedItem();
+            String type = (String) typeCombo.getSelectedItem();
+            String typeValue = type.equals("收入") ? "INCOME" : "EXPENSE";
+
+            BigDecimal amount = new BigDecimal(amountField.getText().trim());
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                JOptionPane.showMessageDialog(this, "金额必须大于0", "错误", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+            Date billDate = sdf.parse(dateField.getText().trim());
+
+            String remark = remarkArea.getText().trim();
+
+            boolean success;
+            if (bill == null) {
+                // 添加新账单
+                success = billController.addBill(
+                        selectedCategory.getId(), amount, typeValue, remark, billDate);
+            } else {
+                // 更新现有账单
+                success = billController.updateBill(
+                        bill.getId(), selectedCategory.getId(), amount, typeValue, remark, billDate);
+            }
+
+            if (success) {
+                JOptionPane.showMessageDialog(this, "保存成功", "成功",
+                        JOptionPane.INFORMATION_MESSAGE);
+                billPanel.refresh();
+                dispose();
+            } else {
+                JOptionPane.showMessageDialog(this, "保存失败", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "金额格式错误", "错误", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "日期格式错误，请使用 yyyy-MM-dd 格式",
+                    "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/CategoryPanel.java
+package com.finance.view;
+
+import com.finance.controller.CategoryController;
+import com.finance.entity.Category;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.util.List;
+
+public class CategoryPanel extends JPanel implements MainFrame.Refreshable {
+    private CategoryController categoryController;
+
+    private JTable categoryTable;
+    private DefaultTableModel tableModel;
+    private JComboBox<String> typeCombo;
+
+    public CategoryPanel(CategoryController categoryController) {
+        this.categoryController = categoryController;
+        initComponents();
+        loadCategories();
+    }
+
+    private void initComponents() {
+        setLayout(new BorderLayout());
+
+        // 创建顶部面板
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        topPanel.add(new JLabel("分类类型:"));
+        typeCombo = new JComboBox<>(new String[]{"全部", "收入", "支出"});
+        typeCombo.addActionListener(e -> loadCategories());
+        topPanel.add(typeCombo);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // 创建表格
+        String[] columns = {"ID", "分类名称", "类型", "创建者"};
+        tableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        categoryTable = new JTable(tableModel);
+        categoryTable.setRowHeight(25);
+        JScrollPane scrollPane = new JScrollPane(categoryTable);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // 创建底部按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        JButton addButton = new JButton("添加分类");
+        addButton.addActionListener(e -> openAddCategoryDialog());
+        buttonPanel.add(addButton);
+
+        JButton editButton = new JButton("编辑分类");
+        editButton.addActionListener(e -> openEditCategoryDialog());
+        buttonPanel.add(editButton);
+
+        JButton deleteButton = new JButton("删除分类");
+        deleteButton.addActionListener(e -> deleteCategory());
+        buttonPanel.add(deleteButton);
+
+        JButton refreshButton = new JButton("刷新");
+        refreshButton.addActionListener(e -> loadCategories());
+        buttonPanel.add(refreshButton);
+
+        add(buttonPanel, BorderLayout.SOUTH);
+    }
+
+    private void loadCategories() {
+        // 清空表格
+        tableModel.setRowCount(0);
+
+        List<Category> categories = categoryController.getAllCategories();
+        if (categories != null) {
+            String selectedType = (String) typeCombo.getSelectedItem();
+
+            for (Category category : categories) {
+                // 根据筛选条件过滤
+                if (!selectedType.equals("全部")) {
+                    String expectedType = selectedType.equals("收入") ? "INCOME" : "EXPENSE";
+                    if (!category.getType().equals(expectedType)) {
+                        continue;
+                    }
+                }
+
+                String creator = category.getUserId() == 0 ? "系统" : "用户";
+                String typeDisplay = category.getType().equals("INCOME") ? "收入" : "支出";
+
+                Object[] row = {
+                        category.getId(),
+                        category.getName(),
+                        typeDisplay,
+                        creator
+                };
+                tableModel.addRow(row);
+            }
+        }
+    }
+
+    private void openAddCategoryDialog() {
+        new CategoryDialog(null, categoryController, this).setVisible(true);
+    }
+
+    private void openEditCategoryDialog() {
+        int selectedRow = categoryTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "请选择要编辑的分类", "提示",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Integer categoryId = (Integer) tableModel.getValueAt(selectedRow, 0);
+        Category category = categoryController.getCategoryById(categoryId);
+
+        if (category != null) {
+            // 只能编辑用户自己的分类
+            if (category.getUserId() == 0) {
+                JOptionPane.showMessageDialog(this, "不能编辑系统默认分类", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            new CategoryDialog(category, categoryController, this).setVisible(true);
+        }
+    }
+
+    private void deleteCategory() {
+        int selectedRow = categoryTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "请选择要删除的分类", "提示",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Integer categoryId = (Integer) tableModel.getValueAt(selectedRow, 0);
+        Category category = categoryController.getCategoryById(categoryId);
+
+        if (category == null) {
+            return;
+        }
+
+        // 不能删除系统默认分类
+        if (category.getUserId() == 0) {
+            JOptionPane.showMessageDialog(this, "不能删除系统默认分类", "错误",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "确定要删除分类 \"" + category.getName() + "\" 吗？",
+                "确认删除", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            boolean success = categoryController.deleteCategory(categoryId);
+
+            if (success) {
+                JOptionPane.showMessageDialog(this, "删除成功", "成功",
+                        JOptionPane.INFORMATION_MESSAGE);
+                loadCategories();
+            } else {
+                JOptionPane.showMessageDialog(this, "删除失败", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    @Override
+    public void refresh() {
+        loadCategories();
+    }
+}
+
+// 分类对话框
+class CategoryDialog extends JDialog {
+    private Category category;
+    private CategoryController categoryController;
+    private CategoryPanel categoryPanel;
+
+    private JTextField nameField;
+    private JComboBox<String> typeCombo;
+
+    public CategoryDialog(Category category, CategoryController categoryController,
+                          CategoryPanel categoryPanel) {
+        super((Frame) null, category == null ? "添加分类" : "编辑分类", true);
+        this.category = category;
+        this.categoryController = categoryController;
+        this.categoryPanel = categoryPanel;
+
+        initComponents();
+        if (category != null) {
+            loadCategoryData();
+        }
+    }
+
+    private void initComponents() {
+        setSize(300, 200);
+        setLocationRelativeTo(null);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // 表单面板
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // 分类名称
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(new JLabel("分类名称:"), gbc);
+
+        gbc.gridx = 1;
+        nameField = new JTextField(15);
+        formPanel.add(nameField, gbc);
+
+        // 分类类型
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(new JLabel("分类类型:"), gbc);
+
+        gbc.gridx = 1;
+        typeCombo = new JComboBox<>(new String[]{"收入", "支出"});
+        formPanel.add(typeCombo, gbc);
+
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+
+        JButton saveButton = new JButton("保存");
+        saveButton.addActionListener(e -> saveCategory());
+
+        JButton cancelButton = new JButton("取消");
+        cancelButton.addActionListener(e -> dispose());
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+    }
+
+    private void loadCategoryData() {
+        if (category != null) {
+            nameField.setText(category.getName());
+            typeCombo.setSelectedItem(category.getType().equals("INCOME") ? "收入" : "支出");
+        }
+    }
+
+    private void saveCategory() {
+        String name = nameField.getText().trim();
+        String type = (String) typeCombo.getSelectedItem();
+        String typeValue = type.equals("收入") ? "INCOME" : "EXPENSE";
+
+        if (name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "分类名称不能为空", "错误",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        boolean success;
+        if (category == null) {
+            // 添加分类
+            success = categoryController.addCategory(name, typeValue);
+        } else {
+            // 更新分类
+            success = categoryController.updateCategory(category.getId(), name, typeValue);
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "保存成功", "成功",
+                    JOptionPane.INFORMATION_MESSAGE);
+            categoryPanel.refresh();
+            dispose();
+        } else {
+            JOptionPane.showMessageDialog(this, "保存失败，可能分类名称已存在", "错误",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/FinanceApplication.java
+package com.finance.view;
+
+import com.finance.controller.UserController;
+import javax.swing.*;
+
+public class FinanceApplication {
+    public static void main(String[] args) {
+        // 设置外观
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 启动应用程序
+        SwingUtilities.invokeLater(() -> {
+            UserController userController = new UserController();
+            new LoginFrame(userController).setVisible(true);
+        });
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/LoginFrame.java
+package com.finance.view;
+
+import com.finance.controller.UserController;
+import javax.swing.*;
+import java.awt.*;
+
+public class LoginFrame extends JFrame {
+    private UserController userController;
+
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton;
+    private JButton registerButton;
+
+    public LoginFrame(UserController userController) {
+        this.userController = userController;
+        initComponents();
+    }
+
+    private void initComponents() {
+        setTitle("个人收支记账系统 - 登录");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(400, 300);
+        setLocationRelativeTo(null);
+
+        // 创建面板
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // 创建标题
+        JLabel titleLabel = new JLabel("个人收支记账系统", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("微软雅黑", Font.BOLD, 24));
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+
+        // 创建表单面板
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // 用户名
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(new JLabel("用户名:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        usernameField = new JTextField(15);
+        formPanel.add(usernameField, gbc);
+
+        // 密码
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(new JLabel("密码:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        passwordField = new JPasswordField(15);
+        formPanel.add(passwordField, gbc);
+
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+
+        // 创建按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+
+        loginButton = new JButton("登录");
+        loginButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        loginButton.addActionListener(e -> login());
+
+        registerButton = new JButton("注册");
+        registerButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        registerButton.addActionListener(e -> openRegisterDialog());
+
+        buttonPanel.add(loginButton);
+        buttonPanel.add(registerButton);
+
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // 添加回车键监听
+        getRootPane().setDefaultButton(loginButton);
+
+        add(mainPanel);
+    }
+
+    private void login() {
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword());
+
+        if (username.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "用户名和密码不能为空", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        boolean success = userController.login(username, password);
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "登录成功！", "成功", JOptionPane.INFORMATION_MESSAGE);
+            new MainFrame(userController).setVisible(true);
+            dispose(); // 关闭登录窗口
+        } else {
+            JOptionPane.showMessageDialog(this, "用户名或密码错误", "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void openRegisterDialog() {
+        new RegisterDialog(this, userController).setVisible(true);
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/MainFrame.java
+package com.finance.view;
+
+import com.finance.controller.BillController;
+import com.finance.controller.CategoryController;
+import com.finance.controller.UserController;
+import javax.swing.*;
+import java.awt.*;
+
+public class MainFrame extends JFrame {
+    private UserController userController;
+    private CategoryController categoryController;
+    private BillController billController;
+
+    private JTabbedPane tabbedPane;
+    private JLabel welcomeLabel;
+
+    public MainFrame(UserController userController) {
+        this.userController = userController;
+        this.categoryController = new CategoryController(userController);
+        this.billController = new BillController(userController);
+
+        initComponents();
+    }
+
+    private void initComponents() {
+        setTitle("个人收支记账系统");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(1000, 700);
+        setLocationRelativeTo(null);
+
+        // 创建菜单栏
+        createMenuBar();
+
+        // 创建主面板
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        // 创建欢迎标签
+        welcomeLabel = new JLabel("欢迎，", SwingConstants.CENTER);
+        welcomeLabel.setFont(new Font("微软雅黑", Font.BOLD, 18));
+        updateWelcomeLabel();
+        mainPanel.add(welcomeLabel, BorderLayout.NORTH);
+
+        // 创建选项卡面板
+        tabbedPane = new JTabbedPane();
+
+        // 添加账单管理标签页
+        BillPanel billPanel = new BillPanel(billController, categoryController);
+        tabbedPane.addTab("账单管理", billPanel);
+
+        // 添加分类管理标签页
+        CategoryPanel categoryPanel = new CategoryPanel(categoryController);
+        tabbedPane.addTab("分类管理", categoryPanel);
+
+        // 添加统计报表标签页
+        ReportPanel reportPanel = new ReportPanel(billController);
+        tabbedPane.addTab("统计报表", reportPanel);
+
+        // 添加用户管理标签页
+        UserPanel userPanel = new UserPanel(userController);
+        tabbedPane.addTab("用户管理", userPanel);
+
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+
+        add(mainPanel);
+    }
+
+    private void createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        // 文件菜单
+        JMenu fileMenu = new JMenu("文件");
+        JMenuItem exitItem = new JMenuItem("退出");
+        exitItem.addActionListener(e -> System.exit(0));
+        fileMenu.add(exitItem);
+        menuBar.add(fileMenu);
+
+        // 工具菜单
+        JMenu toolsMenu = new JMenu("工具");
+        JMenuItem refreshItem = new JMenuItem("刷新数据");
+        refreshItem.addActionListener(e -> refreshAllTabs());
+        toolsMenu.add(refreshItem);
+        menuBar.add(toolsMenu);
+
+        setJMenuBar(menuBar);
+    }
+
+    private void updateWelcomeLabel() {
+        if (userController.isLoggedIn()) {
+            String nickname = userController.getCurrentUser().getNickname();
+            welcomeLabel.setText("欢迎，" + nickname + "！");
+        }
+    }
+
+    private void refreshAllTabs() {
+        Component[] tabs = tabbedPane.getComponents();
+        for (Component tab : tabs) {
+            if (tab instanceof Refreshable) {
+                ((Refreshable) tab).refresh();
+            }
+        }
+        JOptionPane.showMessageDialog(this, "数据已刷新", "提示", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    // 可刷新接口
+    interface Refreshable {
+        void refresh();
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/RegisterDialog.java
+package com.finance.view;
+
+import com.finance.controller.UserController;
+import javax.swing.*;
+import java.awt.*;
+
+public class RegisterDialog extends JDialog {
+    private UserController userController;
+
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JPasswordField confirmPasswordField;
+    private JTextField nicknameField;
+
+    public RegisterDialog(JFrame parent, UserController userController) {
+        super(parent, "用户注册", true);
+        this.userController = userController;
+        initComponents();
+    }
+
+    private void initComponents() {
+        setSize(400, 350);
+        setLocationRelativeTo(getParent());
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        // 表单面板
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // 用户名
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(new JLabel("用户名:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        usernameField = new JTextField(15);
+        formPanel.add(usernameField, gbc);
+
+        // 密码
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(new JLabel("密码:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 1;
+        passwordField = new JPasswordField(15);
+        formPanel.add(passwordField, gbc);
+
+        // 确认密码
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(new JLabel("确认密码:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        confirmPasswordField = new JPasswordField(15);
+        formPanel.add(confirmPasswordField, gbc);
+
+        // 昵称
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        formPanel.add(new JLabel("昵称:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.gridy = 3;
+        nicknameField = new JTextField(15);
+        formPanel.add(nicknameField, gbc);
+
+        mainPanel.add(formPanel, BorderLayout.CENTER);
+
+        // 按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+
+        JButton registerButton = new JButton("注册");
+        registerButton.addActionListener(e -> register());
+
+        JButton cancelButton = new JButton("取消");
+        cancelButton.addActionListener(e -> dispose());
+
+        buttonPanel.add(registerButton);
+        buttonPanel.add(cancelButton);
+
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+    }
+
+    private void register() {
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        String confirmPassword = new String(confirmPasswordField.getPassword());
+        String nickname = nicknameField.getText().trim();
+
+        // 验证输入
+        if (username.isEmpty() || password.isEmpty() || nickname.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "所有字段都必须填写", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            JOptionPane.showMessageDialog(this, "两次输入的密码不一致", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (password.length() < 6) {
+            JOptionPane.showMessageDialog(this, "密码长度至少6位", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // 检查用户名是否存在
+        if (userController.checkUsernameExists(username)) {
+            JOptionPane.showMessageDialog(this, "用户名已存在", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // 注册用户
+        boolean success = userController.register(username, password, nickname);
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "注册成功！", "成功", JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+        } else {
+            JOptionPane.showMessageDialog(this, "注册失败，请重试", "错误", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/ReportPanel.java
+package com.finance.view;
+
+import com.finance.controller.BillController;
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class ReportPanel extends JPanel implements MainFrame.Refreshable {
+    private BillController billController;
+
+    private JComboBox<Integer> yearCombo;
+    private JComboBox<Integer> monthCombo;
+    private JComboBox<String> reportTypeCombo;
+    private JTextArea reportArea;
+    private JTable statsTable;
+    private DefaultTableModel tableModel;
+
+    public ReportPanel(BillController billController) {
+        this.billController = billController;
+        initComponents();
+        loadReport();
+    }
+
+    private void initComponents() {
+        setLayout(new BorderLayout());
+
+        // 创建控制面板
+        JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+
+        // 年份选择
+        controlPanel.add(new JLabel("年份:"));
+        yearCombo = new JComboBox<>();
+        Calendar cal = Calendar.getInstance();
+        int currentYear = cal.get(Calendar.YEAR);
+        for (int year = currentYear - 5; year <= currentYear; year++) {
+            yearCombo.addItem(year);
+        }
+        yearCombo.setSelectedItem(currentYear);
+        yearCombo.addActionListener(e -> loadReport());
+        controlPanel.add(yearCombo);
+
+        // 月份选择
+        controlPanel.add(new JLabel("月份:"));
+        monthCombo = new JComboBox<>();
+        for (int month = 1; month <= 12; month++) {
+            monthCombo.addItem(month);
+        }
+        monthCombo.setSelectedItem(cal.get(Calendar.MONTH) + 1);
+        monthCombo.addActionListener(e -> loadReport());
+        controlPanel.add(monthCombo);
+
+        // 报表类型选择
+        controlPanel.add(new JLabel("报表类型:"));
+        reportTypeCombo = new JComboBox<>(new String[]{
+                "月度收支汇总", "支出分类统计", "收入分类统计", "收支趋势分析"
+        });
+        reportTypeCombo.addActionListener(e -> loadReport());
+        controlPanel.add(reportTypeCombo);
+
+        // 刷新按钮
+        JButton refreshButton = new JButton("刷新");
+        refreshButton.addActionListener(e -> loadReport());
+        controlPanel.add(refreshButton);
+
+        add(controlPanel, BorderLayout.NORTH);
+
+        // 创建中心面板（使用卡片布局切换不同视图）
+        JPanel centerPanel = new JPanel(new CardLayout());
+
+        // 文本报表面板
+        JPanel textPanel = new JPanel(new BorderLayout());
+        reportArea = new JTextArea();
+        reportArea.setFont(new Font("微软雅黑", Font.PLAIN, 12));
+        reportArea.setEditable(false);
+        JScrollPane textScroll = new JScrollPane(reportArea);
+        textPanel.add(textScroll, BorderLayout.CENTER);
+
+        // 表格统计面板
+        JPanel tablePanel = new JPanel(new BorderLayout());
+        tableModel = new DefaultTableModel();
+        statsTable = new JTable(tableModel);
+        JScrollPane tableScroll = new JScrollPane(statsTable);
+        tablePanel.add(tableScroll, BorderLayout.CENTER);
+
+        centerPanel.add(textPanel, "text");
+        centerPanel.add(tablePanel, "table");
+
+        add(centerPanel, BorderLayout.CENTER);
+    }
+
+    private void loadReport() {
+        String reportType = (String) reportTypeCombo.getSelectedItem();
+        Integer year = (Integer) yearCombo.getSelectedItem();
+        Integer month = (Integer) monthCombo.getSelectedItem();
+
+        Calendar cal = Calendar.getInstance();
+        cal.set(year, month - 1, 1);
+        Date startDate = cal.getTime();
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+        Date endDate = cal.getTime();
+
+        // 显示对应的面板
+        CardLayout cl = (CardLayout) ((JPanel) getComponent(1)).getLayout();
+
+        switch (reportType) {
+            case "月度收支汇总":
+                showMonthlySummary(year, month);
+                cl.show((JPanel) getComponent(1), "text");
+                break;
+            case "支出分类统计":
+                showCategoryStats(startDate, endDate, "EXPENSE", "支出");
+                cl.show((JPanel) getComponent(1), "table");
+                break;
+            case "收入分类统计":
+                showCategoryStats(startDate, endDate, "INCOME", "收入");
+                cl.show((JPanel) getComponent(1), "table");
+                break;
+            case "收支趋势分析":
+                showTrendAnalysis(startDate, endDate);
+                cl.show((JPanel) getComponent(1), "table");
+                break;
+        }
+    }
+
+    private void showMonthlySummary(int year, int month) {
+        Map<String, BigDecimal> summary = billController.getMonthlySummary(year, month);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("==================== 月度收支汇总 ====================\n");
+        sb.append(String.format("统计期间：%d年%d月\n\n", year, month));
+
+        if (summary != null && !summary.isEmpty()) {
+            DecimalFormat df = new DecimalFormat("#,##0.00");
+
+            BigDecimal income = summary.get("income");
+            BigDecimal expense = summary.get("expense");
+            BigDecimal balance = summary.get("balance");
+
+            sb.append(String.format("总收入：￥%s\n",
+                    income != null ? df.format(income) : "0.00"));
+            sb.append(String.format("总支出：￥%s\n",
+                    expense != null ? df.format(expense) : "0.00"));
+            sb.append("--------------------------------------------\n");
+            sb.append(String.format("月结余：￥%s\n\n",
+                    balance != null ? df.format(balance) : "0.00"));
+
+            // 计算支出占比
+            if (income != null && income.compareTo(BigDecimal.ZERO) > 0) {
+                double expenseRatio = expense != null ?
+                        expense.divide(income, 4, BigDecimal.ROUND_HALF_UP)
+                                .multiply(new BigDecimal(100)).doubleValue() : 0;
+                sb.append(String.format("支出占比：%.2f%%\n", expenseRatio));
+            }
+
+            // 结余率
+            if (income != null && income.compareTo(BigDecimal.ZERO) > 0) {
+                double balanceRatio = balance != null ?
+                        balance.divide(income, 4, BigDecimal.ROUND_HALF_UP)
+                                .multiply(new BigDecimal(100)).doubleValue() : 0;
+                sb.append(String.format("结余率：%.2f%%\n", balanceRatio));
+            }
+        } else {
+            sb.append("本月暂无收支记录\n");
+        }
+
+        sb.append("\n==================================================\n");
+        sb.append("生成时间：").append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
+
+        reportArea.setText(sb.toString());
+    }
+
+    private void showCategoryStats(Date startDate, Date endDate, String type, String typeName) {
+        java.util.List<Map<String, Object>> stats = billController.getCategoryStats(startDate, endDate, type);
+
+        // 设置表头
+        String[] columns = {"分类名称", "金额", "占比"};
+        tableModel.setColumnIdentifiers(columns);
+        tableModel.setRowCount(0);
+
+        if (stats != null && !stats.isEmpty()) {
+            DecimalFormat df = new DecimalFormat("#,##0.00");
+            DecimalFormat percentFormat = new DecimalFormat("0.00");
+
+            for (Map<String, Object> stat : stats) {
+                String category = (String) stat.get("category");
+                BigDecimal amount = (BigDecimal) stat.get("amount");
+                double percentage = (Double) stat.get("percentage");
+
+                Object[] row = {
+                        category,
+                        "￥" + df.format(amount),
+                        percentFormat.format(percentage) + "%"
+                };
+                tableModel.addRow(row);
+            }
+        }
+    }
+
+    private void showTrendAnalysis(Date startDate, Date endDate) {
+        java.util.List<Map<String, Object>> trendData = billController.getTrendData(startDate, endDate);
+
+        // 设置表头
+        String[] columns = {"月份", "收入", "支出", "结余", "结余率"};
+        tableModel.setColumnIdentifiers(columns);
+        tableModel.setRowCount(0);
+
+        if (trendData != null && !trendData.isEmpty()) {
+            DecimalFormat df = new DecimalFormat("#,##0.00");
+            DecimalFormat percentFormat = new DecimalFormat("0.00");
+
+            for (Map<String, Object> data : trendData) {
+                String month = (String) data.get("month");
+                BigDecimal income = (BigDecimal) data.get("income");
+                BigDecimal expense = (BigDecimal) data.get("expense");
+
+                if (income == null) income = BigDecimal.ZERO;
+                if (expense == null) expense = BigDecimal.ZERO;
+
+                BigDecimal balance = income.subtract(expense);
+                double balanceRatio = 0;
+
+                if (income.compareTo(BigDecimal.ZERO) > 0) {
+                    balanceRatio = balance.divide(income, 4, BigDecimal.ROUND_HALF_UP)
+                            .multiply(new BigDecimal(100)).doubleValue();
+                }
+
+                Object[] row = {
+                        month,
+                        "￥" + df.format(income),
+                        "￥" + df.format(expense),
+                        "￥" + df.format(balance),
+                        percentFormat.format(balanceRatio) + "%"
+                };
+                tableModel.addRow(row);
+            }
+        }
+    }
+
+    @Override
+    public void refresh() {
+        loadReport();
+    }
+}
+// ===========================================
+
+// File: ./src/com/finance/view/UserPanel.java
+package com.finance.view;
+
+import com.finance.controller.UserController;
+import com.finance.entity.User;
+import javax.swing.*;
+import java.awt.*;
+
+public class UserPanel extends JPanel implements MainFrame.Refreshable {
+    private UserController userController;
+
+    private JLabel usernameLabel;
+    private JTextField nicknameField;
+    private JPasswordField passwordField;
+    private JPasswordField confirmPasswordField;
+
+    public UserPanel(UserController userController) {
+        this.userController = userController;
+        initComponents();
+        loadUserInfo();
+    }
+
+    private void initComponents() {
+        setLayout(new BorderLayout());
+
+        // 创建标题
+        JLabel titleLabel = new JLabel("用户信息管理", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("微软雅黑", Font.BOLD, 20));
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
+        add(titleLabel, BorderLayout.NORTH);
+
+        // 创建表单面板
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // 用户名（只读）
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        formPanel.add(new JLabel("用户名:"), gbc);
+
+        gbc.gridx = 1;
+        usernameLabel = new JLabel();
+        usernameLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        formPanel.add(usernameLabel, gbc);
+
+        // 昵称
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        formPanel.add(new JLabel("昵称:"), gbc);
+
+        gbc.gridx = 1;
+        nicknameField = new JTextField(20);
+        formPanel.add(nicknameField, gbc);
+
+        // 新密码
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        formPanel.add(new JLabel("新密码:"), gbc);
+
+        gbc.gridx = 1;
+        passwordField = new JPasswordField(20);
+        formPanel.add(passwordField, gbc);
+
+        // 确认密码
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        formPanel.add(new JLabel("确认密码:"), gbc);
+
+        gbc.gridx = 1;
+        confirmPasswordField = new JPasswordField(20);
+        formPanel.add(confirmPasswordField, gbc);
+
+        // 提示文本
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        JLabel hintLabel = new JLabel("提示：如果不想修改密码，请将密码字段留空");
+        hintLabel.setFont(new Font("微软雅黑", Font.ITALIC, 12));
+        hintLabel.setForeground(Color.GRAY);
+        formPanel.add(hintLabel, gbc);
+
+        // 警告文本
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 2;
+        JLabel warningLabel = new JLabel("警告：删除账户将永久删除所有数据，无法恢复！");
+        warningLabel.setFont(new Font("微软雅黑", Font.BOLD, 12));
+        warningLabel.setForeground(Color.RED);
+        formPanel.add(warningLabel, gbc);
+
+        add(formPanel, BorderLayout.CENTER);
+
+        // 创建按钮面板
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 20));
+
+        JButton saveButton = new JButton("保存修改");
+        saveButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        saveButton.addActionListener(e -> saveUserInfo());
+
+        JButton logoutButton = new JButton("退出登录");
+        logoutButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        logoutButton.addActionListener(e -> logout());
+
+        // 添加删除账户按钮
+        JButton deleteAccountButton = new JButton("删除账户");
+        deleteAccountButton.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        deleteAccountButton.setForeground(Color.RED);
+        deleteAccountButton.addActionListener(e -> deleteAccount());
+
+        buttonPanel.add(saveButton);
+        buttonPanel.add(logoutButton);
+        buttonPanel.add(deleteAccountButton);
+
+        add(buttonPanel, BorderLayout.SOUTH);
+    }
+
+    private void loadUserInfo() {
+        User currentUser = userController.getCurrentUser();
+        if (currentUser != null) {
+            usernameLabel.setText(currentUser.getUsername());
+            nicknameField.setText(currentUser.getNickname());
+            passwordField.setText("");
+            confirmPasswordField.setText("");
+        }
+    }
+
+    private void saveUserInfo() {
+        String nickname = nicknameField.getText().trim();
+        String password = new String(passwordField.getPassword());
+        String confirmPassword = new String(confirmPasswordField.getPassword());
+
+        // 验证输入
+        if (nickname.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "昵称不能为空", "错误", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        if (!password.isEmpty()) {
+            if (password.length() < 6) {
+                JOptionPane.showMessageDialog(this, "密码长度至少6位", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            if (!password.equals(confirmPassword)) {
+                JOptionPane.showMessageDialog(this, "两次输入的密码不一致", "错误",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        }
+
+        // 如果密码为空，则保持原密码
+        String finalPassword = password.isEmpty() ?
+                userController.getCurrentUser().getPassword() : password;
+
+        boolean success = userController.updateUser(finalPassword, nickname);
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "修改成功", "成功",
+                    JOptionPane.INFORMATION_MESSAGE);
+            loadUserInfo(); // 重新加载用户信息
+        } else {
+            JOptionPane.showMessageDialog(this, "修改失败", "错误",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void logout() {
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "确定要退出登录吗？", "确认退出", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            userController.logout();
+
+            // 关闭主窗口，返回登录界面
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) {
+                window.dispose();
+            }
+
+            // 显示登录窗口
+            UserController newUserController = new UserController();
+            LoginFrame loginFrame = new LoginFrame(newUserController);
+            loginFrame.setVisible(true);
+        }
+    }
+
+    private void deleteAccount() {
+        // 创建确认对话框
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "<html><body style='width: 300px;'>" +
+                        "<h3>警告：删除账户是不可逆的操作！</h3>" +
+                        "<p>删除后，以下数据将被永久删除：</p>" +
+                        "<ul>" +
+                        "<li>您的所有账单记录</li>" +
+                        "<li>您的自定义分类</li>" +
+                        "<li>您的账户信息</li>" +
+                        "</ul>" +
+                        "<p><b>此操作无法撤销！</b></p>" +
+                        "<p>您确定要继续吗？</p>" +
+                        "</body></html>",
+                "确认删除账户",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // 创建密码验证对话框
+        JPasswordField passwordField = new JPasswordField(20);
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JLabel("请输入您的密码以确认删除："), BorderLayout.NORTH);
+        panel.add(passwordField, BorderLayout.CENTER);
+
+        int result = JOptionPane.showConfirmDialog(this,
+                panel,
+                "密码验证",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+
+        if (result != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String password = new String(passwordField.getPassword());
+
+        if (password.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "密码不能为空！",
+                    "错误",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // 验证密码
+        boolean passwordCorrect = userController.verifyPassword(password);
+        if (!passwordCorrect) {
+            JOptionPane.showMessageDialog(this,
+                    "密码错误！",
+                    "错误",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // 最后一次确认
+        int finalConfirm = JOptionPane.showConfirmDialog(this,
+                "<html><body style='width: 300px;'>" +
+                        "<h3 style='color: red;'>最后确认</h3>" +
+                        "<p>您确定要永久删除账户吗？</p>" +
+                        "<p><b>此操作将删除所有数据且无法恢复！</b></p>" +
+                        "</body></html>",
+                "最后确认",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.ERROR_MESSAGE);
+
+        if (finalConfirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        // 执行删除账户操作
+        boolean success = userController.deleteAccount(password);
+
+        if (success) {
+            JOptionPane.showMessageDialog(this,
+                    "账户已成功删除！",
+                    "成功",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+            // 关闭主窗口
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) {
+                window.dispose();
+            }
+
+            // 显示登录窗口
+            UserController newUserController = new UserController();
+            LoginFrame loginFrame = new LoginFrame(newUserController);
+            loginFrame.setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "删除账户失败，请重试！",
+                    "错误",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    @Override
+    public void refresh() {
+        loadUserInfo();
+    }
+}
+// ===========================================
+
